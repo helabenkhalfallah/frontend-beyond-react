@@ -1,32 +1,39 @@
-import React, { useState, useEffect, Suspense, lazy } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
-import { onCLS, onFID, onLCP } from "web-vitals";
-import ProductLoader from "../components/ProductLoader";
+import { Center, Box, Heading, Input, Spinner } from "@chakra-ui/react";
 
-const ProductListHeader = lazy(() => import("../components/ProductListHeader"));
-const ProductListFooter = lazy(() => import("../components/ProductListFooter"));
-const ProductListBody = lazy(() => import("../components/ProductListBody"));
-const ProductListView = lazy(() => import("../components/ProductListView"));
-const ProductListTitle = lazy(() => import("../components/ProductListTitle"));
+const ProductList = lazy(() => import("../components/ProductList"));
+
+const fetchProducts = (page = 1) => {
+  return axios
+    .get(`https://dummyjson.com/products?skip=${page}&limit=10`)
+    .then((response) => response.data);
+};
 
 const ProductListPage = () => {
   const [
-    currentPage, //
-    setCurrentPage,
-  ] = useState(0);
+    searchTerm, //
+    setSearchTerm, //
+  ] = useState("");
+  const [
+    page, //
+    setPage, //
+  ] = useState(1);
   const [
     productDataSource, //
     setProductDataSource,
   ] = useState([]);
 
-  const { isLoading, data, refetch } = useQuery(
+  // Use React Query's useQuery hook to fetch product data
+  const {
+    data,
+    isLoading, //
+    refetch, //
+  } = useQuery(
     {
-      queryKey: ["repoData"],
-      queryFn: () =>
-        axios
-          .get(`https://dummyjson.com/products?skip=${currentPage}&limit=10`)
-          .then((response) => response?.data),
+      queryKey: ["products", page],
+      queryFn: () => fetchProducts(page),
     },
     {
       refetchOnWindowFocus: false,
@@ -35,20 +42,13 @@ const ProductListPage = () => {
   );
 
   useEffect(() => {
-    // eslint-disable-next-line no-console
-    onCLS(console.log);
-    // eslint-disable-next-line no-console
-    onFID(console.log);
-    // eslint-disable-next-line no-console
-    onLCP(console.log);
-
     // first fetch
     refetch();
   }, []);
 
   useEffect(() => {
     refetch();
-  }, [currentPage]);
+  }, [page]);
 
   useEffect(() => {
     setProductDataSource([
@@ -57,35 +57,55 @@ const ProductListPage = () => {
     ]);
   }, [data]);
 
+  // Fetch more products when "Load More" button is clicked
+  const loadNextPage = () => {
+    setPage((prevPage) => prevPage + 1);
+  };
+
+  // Handle Search Product
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Filter products based on search term
+  const filteredProducts = productDataSource
+    ? productDataSource.filter((product) =>
+      product.title.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    : [];
+
+  const hasNextPage = data ? page < data.total : false;
+  const itemsCount =
+    (hasNextPage && filteredProducts && filteredProducts?.length
+      ? filteredProducts.length + 1
+      : filteredProducts?.length) || 0;
+
   return (
-    <Suspense fallback={<ProductLoader />}>
-      <ProductListHeader>
-        <ProductListTitle>Next generation Store (React)</ProductListTitle>
-      </ProductListHeader>
-      <ProductListBody>
-        <ProductListView
-          data={productDataSource}
-          hasNextPage={currentPage < data?.total}
-          isNextPageLoading={isLoading}
-          loadNextPage={(page) => {
-            setCurrentPage(page);
-          }}
-        />
-      </ProductListBody>
-      <ProductListFooter>
-        <span className="page__copyright">© POC Application</span>
-        <span className="page__copyright">
-          Benchmarking Frontend Frameworks/APIs
-        </span>
-      </ProductListFooter>
+    <Suspense fallback={<Spinner size="lg" />}>
+      <Box>
+        <Center bg="white" w="100%" mt="5">
+          <Heading as="h1">Product List</Heading>
+        </Center>
+        <Center bg="white" w="100%" mt="5" mb="5">
+          <Input
+            w="750px"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+          />
+        </Center>
+        {itemsCount > 0 && (
+          <ProductList
+            isLoading={isLoading}
+            products={filteredProducts}
+            hasNextPage={hasNextPage}
+            itemsCount={itemsCount}
+            loadNextPage={loadNextPage}
+          />
+        )}
+      </Box>
     </Suspense>
   );
 };
-
-ProductListPage.propTypes = {};
-
-ProductListPage.defaultProps = {};
-
-ProductListPage.displayName = "ProductListPage";
 
 export default ProductListPage;
