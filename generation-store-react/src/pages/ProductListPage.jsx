@@ -1,17 +1,22 @@
+// Import necessary dependencies from React and external libraries
 import React, { useState, useEffect, lazy, Suspense } from "react";
 import axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { Center, Box, Heading, Input, Spinner } from "@chakra-ui/react";
 
+// Lazy load the ProductList component
 const ProductList = lazy(() => import("../components/ProductList"));
 
+// Function to fetch products from the API
 const fetchProducts = (page = 1) => {
   return axios
     .get(`https://dummyjson.com/products?skip=${page}&limit=10`)
     .then((response) => response.data);
 };
 
+// ProductListPage component to display the product list page
 const ProductListPage = () => {
+  // State variables for search term, page number, and product data
   const [
     searchTerm, //
     setSearchTerm, //
@@ -22,15 +27,11 @@ const ProductListPage = () => {
   ] = useState(1);
   const [
     productDataSource, //
-    setProductDataSource,
+    setProductDataSource, //
   ] = useState([]);
 
   // Use React Query's useQuery hook to fetch product data
-  const {
-    data,
-    isLoading, //
-    refetch, //
-  } = useQuery(
+  const { data, isLoading, refetch } = useQuery(
     {
       queryKey: ["products", page],
       queryFn: () => fetchProducts(page),
@@ -41,15 +42,17 @@ const ProductListPage = () => {
     }
   );
 
+  // Trigger initial data fetch when the component mounts
   useEffect(() => {
-    // first fetch
     refetch();
   }, []);
 
+  // Fetch more products when the page number changes
   useEffect(() => {
     refetch();
   }, [page]);
 
+  // Update product data source when data changes
   useEffect(() => {
     setProductDataSource([
       ...(productDataSource || []),
@@ -57,35 +60,39 @@ const ProductListPage = () => {
     ]);
   }, [data]);
 
-  // Fetch more products when "Load More" button is clicked
+  // Function to load the next page of products
   const loadNextPage = () => {
     setPage((prevPage) => prevPage + 1);
   };
 
-  // Handle Search Product
+  // Function to handle changes in the search term
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
   };
 
-  // Filter products based on search term
+  // Filter products based on the search term
   const filteredProducts = productDataSource
     ? productDataSource.filter((product) =>
       product.title.toLowerCase().includes(searchTerm.toLowerCase())
     )
     : [];
 
+  // Calculate the number of items in the list
   const hasNextPage = data ? page < data.total : false;
   const itemsCount =
     (hasNextPage && filteredProducts && filteredProducts?.length
       ? filteredProducts.length + 1
       : filteredProducts?.length) || 0;
 
+  // Render the ProductList component with necessary props
   return (
     <Suspense fallback={<Spinner size="lg" />}>
       <Box>
+        {/* Display the heading */}
         <Center bg="white" w="100%" mt="5">
           <Heading as="h1">Product List</Heading>
         </Center>
+        {/* Display the search input */}
         <Center bg="white" w="100%" mt="5" mb="5">
           <Input
             w="750px"
@@ -94,6 +101,7 @@ const ProductListPage = () => {
             onChange={handleSearchChange}
           />
         </Center>
+        {/* Render the ProductList component if items are available */}
         {itemsCount > 0 && (
           <ProductList
             isLoading={isLoading}
@@ -108,4 +116,5 @@ const ProductListPage = () => {
   );
 };
 
+// Export the ProductListPage component as default
 export default ProductListPage;
